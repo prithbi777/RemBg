@@ -96,165 +96,182 @@ function ImageCropper({ image, onCrop, onCancel }) {
     }
   }, [selectedPreset, containerSize])
 
-  // Global mouse event handlers
-  useEffect(() => {
-    if (isDragging || isResizing) {
-      const handleMouseMove = (e) => {
-        if (!containerRef.current) return
-        
-        // Find the image wrapper element
-        const imageWrapper = containerRef.current.querySelector('.cropper-image-wrapper')
-        if (!imageWrapper) return
-        
-        const wrapperRect = imageWrapper.getBoundingClientRect()
-        const containerRect = containerRef.current.getBoundingClientRect()
-        
-        // Calculate position relative to the image wrapper (not the container)
-        const x = e.clientX - wrapperRect.left
-        const y = e.clientY - wrapperRect.top
-        
-        // Clamp coordinates to image bounds
-        const clampedX = Math.max(0, Math.min(x, containerSize.width))
-        const clampedY = Math.max(0, Math.min(y, containerSize.height))
-        
-        if (isDragging && !isResizing) {
-          // Moving the crop area
-          const currentCrop = cropRef.current
-          const newX = clampedX - dragStart.x
-          const newY = clampedY - dragStart.y
-          
-          // Constrain to container bounds - allow full range of movement
-          // Ensure we can move all the way to the right edge
-          const maxX = Math.max(0, containerSize.width - currentCrop.width)
-          const maxY = Math.max(0, containerSize.height - currentCrop.height)
-          
-          // Allow movement to the full extent
-          const constrainedX = Math.max(0, Math.min(newX, maxX))
-          const constrainedY = Math.max(0, Math.min(newY, maxY))
-          
-          setCrop(prev => ({
-            ...prev,
-            x: constrainedX,
-            y: constrainedY
-          }))
-        } else if (isResizing) {
-          // Resizing from a corner
-          const currentCrop = cropRef.current
-          let newCrop = { ...currentCrop }
-          
-          switch (resizeCorner) {
-            case 'tl':
-              newCrop.width = currentCrop.x + currentCrop.width - clampedX
-              newCrop.height = currentCrop.y + currentCrop.height - clampedY
-              newCrop.x = clampedX
-              newCrop.y = clampedY
-              break
-            case 'tr':
-              newCrop.width = clampedX - currentCrop.x
-              newCrop.height = currentCrop.y + currentCrop.height - clampedY
-              newCrop.y = clampedY
-              break
-            case 'bl':
-              newCrop.width = currentCrop.x + currentCrop.width - clampedX
-              newCrop.height = clampedY - currentCrop.y
-              newCrop.x = clampedX
-              break
-            case 'br':
-              newCrop.width = clampedX - currentCrop.x
-              newCrop.height = clampedY - currentCrop.y
-              break
-          }
-          
-          // Maintain aspect ratio if not free form
-          if (selectedPreset !== 'Free Form') {
-            const ratio = PASSPORT_PRESETS[selectedPreset]?.ratio || COMMON_PRESETS[selectedPreset]?.ratio
-            if (ratio) {
-              const newRatio = newCrop.width / newCrop.height
-              if (Math.abs(newRatio - ratio) > 0.01) {
-                // Adjust to maintain ratio
-                if (resizeCorner === 'br' || resizeCorner === 'tl') {
-                  // Use width as primary
-                  newCrop.height = newCrop.width / ratio
-                  if (resizeCorner === 'tl') {
-                    newCrop.y = currentCrop.y + currentCrop.height - newCrop.height
-                  }
-                } else {
-                  // Use height as primary
-                  newCrop.width = newCrop.height * ratio
-                  if (resizeCorner === 'bl') {
-                    newCrop.x = currentCrop.x + currentCrop.width - newCrop.width
-                  }
-                }
+  // Helper function to get coordinates from event (works for both mouse and touch)
+  const getEventCoordinates = (e) => {
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY
+    return { clientX, clientY }
+  }
+
+  // Helper function to update crop position
+  const updateCropPosition = (clientX, clientY) => {
+    if (!containerRef.current) return
+    
+    // Find the image wrapper element
+    const imageWrapper = containerRef.current.querySelector('.cropper-image-wrapper')
+    if (!imageWrapper) return
+    
+    const wrapperRect = imageWrapper.getBoundingClientRect()
+    
+    // Calculate position relative to the image wrapper
+    const x = clientX - wrapperRect.left
+    const y = clientY - wrapperRect.top
+    
+    // Clamp coordinates to image bounds
+    const clampedX = Math.max(0, Math.min(x, containerSize.width))
+    const clampedY = Math.max(0, Math.min(y, containerSize.height))
+    
+    if (isDragging && !isResizing) {
+      // Moving the crop area
+      const currentCrop = cropRef.current
+      const newX = clampedX - dragStart.x
+      const newY = clampedY - dragStart.y
+      
+      // Constrain to container bounds - allow full range of movement
+      const maxX = Math.max(0, containerSize.width - currentCrop.width)
+      const maxY = Math.max(0, containerSize.height - currentCrop.height)
+      
+      const constrainedX = Math.max(0, Math.min(newX, maxX))
+      const constrainedY = Math.max(0, Math.min(newY, maxY))
+      
+      setCrop(prev => ({
+        ...prev,
+        x: constrainedX,
+        y: constrainedY
+      }))
+    } else if (isResizing) {
+      // Resizing from a corner
+      const currentCrop = cropRef.current
+      let newCrop = { ...currentCrop }
+      
+      switch (resizeCorner) {
+        case 'tl':
+          newCrop.width = currentCrop.x + currentCrop.width - clampedX
+          newCrop.height = currentCrop.y + currentCrop.height - clampedY
+          newCrop.x = clampedX
+          newCrop.y = clampedY
+          break
+        case 'tr':
+          newCrop.width = clampedX - currentCrop.x
+          newCrop.height = currentCrop.y + currentCrop.height - clampedY
+          newCrop.y = clampedY
+          break
+        case 'bl':
+          newCrop.width = currentCrop.x + currentCrop.width - clampedX
+          newCrop.height = clampedY - currentCrop.y
+          newCrop.x = clampedX
+          break
+        case 'br':
+          newCrop.width = clampedX - currentCrop.x
+          newCrop.height = clampedY - currentCrop.y
+          break
+      }
+      
+      // Maintain aspect ratio if not free form
+      if (selectedPreset !== 'Free Form') {
+        const ratio = PASSPORT_PRESETS[selectedPreset]?.ratio || COMMON_PRESETS[selectedPreset]?.ratio
+        if (ratio) {
+          const newRatio = newCrop.width / newCrop.height
+          if (Math.abs(newRatio - ratio) > 0.01) {
+            if (resizeCorner === 'br' || resizeCorner === 'tl') {
+              newCrop.height = newCrop.width / ratio
+              if (resizeCorner === 'tl') {
+                newCrop.y = currentCrop.y + currentCrop.height - newCrop.height
+              }
+            } else {
+              newCrop.width = newCrop.height * ratio
+              if (resizeCorner === 'bl') {
+                newCrop.x = currentCrop.x + currentCrop.width - newCrop.width
               }
             }
           }
-          
-          // Constrain to container - adjust position if needed
-          if (newCrop.x < 0) {
-            newCrop.width += newCrop.x
-            newCrop.x = 0
-          }
-          if (newCrop.y < 0) {
-            newCrop.height += newCrop.y
-            newCrop.y = 0
-          }
-          if (newCrop.x + newCrop.width > containerSize.width) {
-            const overflow = (newCrop.x + newCrop.width) - containerSize.width
-            if (resizeCorner === 'tr' || resizeCorner === 'br') {
-              newCrop.width = containerSize.width - newCrop.x
-            } else {
-              newCrop.width -= overflow
-              newCrop.x = containerSize.width - newCrop.width
-            }
-          }
-          if (newCrop.y + newCrop.height > containerSize.height) {
-            const overflow = (newCrop.y + newCrop.height) - containerSize.height
-            if (resizeCorner === 'bl' || resizeCorner === 'br') {
-              newCrop.height = containerSize.height - newCrop.y
-            } else {
-              newCrop.height -= overflow
-              newCrop.y = containerSize.height - newCrop.height
-            }
-          }
-          
-          // Minimum size
-          if (newCrop.width < 20) {
-            const diff = 20 - newCrop.width
-            newCrop.width = 20
-            if (resizeCorner === 'tl' || resizeCorner === 'bl') {
-              newCrop.x -= diff
-            }
-          }
-          if (newCrop.height < 20) {
-            const diff = 20 - newCrop.height
-            newCrop.height = 20
-            if (resizeCorner === 'tl' || resizeCorner === 'tr') {
-              newCrop.y -= diff
-            }
-          }
-          
-          // Final bounds check
-          newCrop.x = Math.max(0, Math.min(newCrop.x, containerSize.width - newCrop.width))
-          newCrop.y = Math.max(0, Math.min(newCrop.y, containerSize.height - newCrop.height))
-          newCrop.width = Math.max(20, Math.min(newCrop.width, containerSize.width - newCrop.x))
-          newCrop.height = Math.max(20, Math.min(newCrop.height, containerSize.height - newCrop.y))
-          
-          setCrop(newCrop)
         }
       }
       
-      const handleMouseUp = () => {
+      // Constrain to container
+      if (newCrop.x < 0) {
+        newCrop.width += newCrop.x
+        newCrop.x = 0
+      }
+      if (newCrop.y < 0) {
+        newCrop.height += newCrop.y
+        newCrop.y = 0
+      }
+      if (newCrop.x + newCrop.width > containerSize.width) {
+        const overflow = (newCrop.x + newCrop.width) - containerSize.width
+        if (resizeCorner === 'tr' || resizeCorner === 'br') {
+          newCrop.width = containerSize.width - newCrop.x
+        } else {
+          newCrop.width -= overflow
+          newCrop.x = containerSize.width - newCrop.width
+        }
+      }
+      if (newCrop.y + newCrop.height > containerSize.height) {
+        const overflow = (newCrop.y + newCrop.height) - containerSize.height
+        if (resizeCorner === 'bl' || resizeCorner === 'br') {
+          newCrop.height = containerSize.height - newCrop.y
+        } else {
+          newCrop.height -= overflow
+          newCrop.y = containerSize.height - newCrop.height
+        }
+      }
+      
+      // Minimum size
+      if (newCrop.width < 20) {
+        const diff = 20 - newCrop.width
+        newCrop.width = 20
+        if (resizeCorner === 'tl' || resizeCorner === 'bl') {
+          newCrop.x -= diff
+        }
+      }
+      if (newCrop.height < 20) {
+        const diff = 20 - newCrop.height
+        newCrop.height = 20
+        if (resizeCorner === 'tl' || resizeCorner === 'tr') {
+          newCrop.y -= diff
+        }
+      }
+      
+      // Final bounds check
+      newCrop.x = Math.max(0, Math.min(newCrop.x, containerSize.width - newCrop.width))
+      newCrop.y = Math.max(0, Math.min(newCrop.y, containerSize.height - newCrop.height))
+      newCrop.width = Math.max(20, Math.min(newCrop.width, containerSize.width - newCrop.x))
+      newCrop.height = Math.max(20, Math.min(newCrop.height, containerSize.height - newCrop.y))
+      
+      setCrop(newCrop)
+    }
+  }
+
+  // Global mouse and touch event handlers
+  useEffect(() => {
+    if (isDragging || isResizing) {
+      const handleMove = (e) => {
+        e.preventDefault()
+        const { clientX, clientY } = getEventCoordinates(e)
+        updateCropPosition(clientX, clientY)
+      }
+      
+      const handleEnd = () => {
         setIsDragging(false)
         setIsResizing(false)
         setResizeCorner(null)
       }
       
-      document.addEventListener('mousemove', handleMouseMove, { passive: false })
-      document.addEventListener('mouseup', handleMouseUp)
+      // Mouse events
+      document.addEventListener('mousemove', handleMove, { passive: false })
+      document.addEventListener('mouseup', handleEnd)
+      
+      // Touch events
+      document.addEventListener('touchmove', handleMove, { passive: false })
+      document.addEventListener('touchend', handleEnd)
+      document.addEventListener('touchcancel', handleEnd)
       
       return () => {
-        document.removeEventListener('mousemove', handleMouseMove)
-        document.removeEventListener('mouseup', handleMouseUp)
+        document.removeEventListener('mousemove', handleMove)
+        document.removeEventListener('mouseup', handleEnd)
+        document.removeEventListener('touchmove', handleMove)
+        document.removeEventListener('touchend', handleEnd)
+        document.removeEventListener('touchcancel', handleEnd)
       }
     }
   }, [isDragging, isResizing, resizeCorner, dragStart, containerSize, selectedPreset])
@@ -306,8 +323,8 @@ function ImageCropper({ image, onCrop, onCancel }) {
     })
   }
 
-  const handleCropAreaMouseDown = (e) => {
-    // Only start dragging if clicking on the crop area itself, not on handles
+  const handleCropAreaStart = (e) => {
+    // Only start dragging if clicking/touching on the crop area itself, not on handles
     if (e.target.classList.contains('crop-handle') || e.target.closest('.crop-handle')) {
       return
     }
@@ -322,15 +339,16 @@ function ImageCropper({ image, onCrop, onCancel }) {
     if (!imageWrapper) return
     
     const wrapperRect = imageWrapper.getBoundingClientRect()
-    const x = e.clientX - wrapperRect.left
-    const y = e.clientY - wrapperRect.top
+    const { clientX, clientY } = getEventCoordinates(e)
+    const x = clientX - wrapperRect.left
+    const y = clientY - wrapperRect.top
     
-    // Check if click is inside crop area (with some tolerance)
+    // Check if click/touch is inside crop area
     const currentCrop = cropRef.current
     if (x >= currentCrop.x && x <= currentCrop.x + currentCrop.width &&
         y >= currentCrop.y && y <= currentCrop.y + currentCrop.height) {
       setIsDragging(true)
-      setIsResizing(false) // Make sure we're not resizing
+      setIsResizing(false)
       setDragStart({ x: x - currentCrop.x, y: y - currentCrop.y })
     }
   }
@@ -339,7 +357,7 @@ function ImageCropper({ image, onCrop, onCancel }) {
     e.preventDefault()
     e.stopPropagation()
     setIsResizing(true)
-    setIsDragging(false) // Make sure we're not dragging
+    setIsDragging(false)
     setResizeCorner(corner)
   }
 
@@ -495,12 +513,29 @@ function ImageCropper({ image, onCrop, onCancel }) {
               width: `${crop.width}px`,
               height: `${crop.height}px`
             }}
-            onMouseDown={handleCropAreaMouseDown}
+            onMouseDown={handleCropAreaStart}
+            onTouchStart={handleCropAreaStart}
           >
-            <div className="crop-handle handle-tl" onMouseDown={(e) => handleResizeStart('tl', e)} />
-            <div className="crop-handle handle-tr" onMouseDown={(e) => handleResizeStart('tr', e)} />
-            <div className="crop-handle handle-bl" onMouseDown={(e) => handleResizeStart('bl', e)} />
-            <div className="crop-handle handle-br" onMouseDown={(e) => handleResizeStart('br', e)} />
+            <div 
+              className="crop-handle handle-tl" 
+              onMouseDown={(e) => handleResizeStart('tl', e)}
+              onTouchStart={(e) => handleResizeStart('tl', e)}
+            />
+            <div 
+              className="crop-handle handle-tr" 
+              onMouseDown={(e) => handleResizeStart('tr', e)}
+              onTouchStart={(e) => handleResizeStart('tr', e)}
+            />
+            <div 
+              className="crop-handle handle-bl" 
+              onMouseDown={(e) => handleResizeStart('bl', e)}
+              onTouchStart={(e) => handleResizeStart('bl', e)}
+            />
+            <div 
+              className="crop-handle handle-br" 
+              onMouseDown={(e) => handleResizeStart('br', e)}
+              onTouchStart={(e) => handleResizeStart('br', e)}
+            />
           </div>
           </div>
         </div>

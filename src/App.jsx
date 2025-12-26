@@ -113,6 +113,7 @@ function App() {
       <div className="app-content">
         <header className="app-header">
           <h1 className="app-title">Free Background Remover By Prithbiraj</h1>
+          <h2>Please Use Chrome</h2>
           <p className="app-subtitle">Remove image backgrounds instantly with AI-powered precision</p>
         </header>
 
