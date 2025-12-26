@@ -112,8 +112,9 @@ function App() {
     <div className="app-container">
       <div className="app-content">
         <header className="app-header">
+          <h1 style={{color: '#00FFFF', fontSize: '2.2rem', fontWeight: 'bold'}}>Welcome to RemBg.ai</h1>
           <h1 className="app-title">Free Background Remover By Prithbiraj</h1>
-          <h2 style={{color: 'yellow', fontSize: '1.2rem', fontWeight: 'bold'}}>Please Use Chrome</h2>
+          <h2 style={{color: '#FFFF00', fontSize: '1.2rem', fontWeight: 'bold'}}>PLEASE USE CHROME</h2>
           <p className="app-subtitle">Remove image backgrounds instantly with AI-powered precision</p>
         </header>
 
