@@ -37,7 +37,7 @@ BG-REMOVER/
 ├── package.json
 ├── vite.config.js
 └── README.md
-
+```
 
 
 ## ✨ Key Features
