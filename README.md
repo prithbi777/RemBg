@@ -46,7 +46,7 @@ BG-REMOVER/
 - ⚡ Instant processing (fast & responsive)
 - 🔐 Secure image handling
 - 🖱️ Drag & drop or click-to-upload
-- 🖼️ Supports JPG & PNG (max 10MB)
+- 🖼️ Supports JPG, JPEG & PNG (max 10MB)
 
 ---
 
