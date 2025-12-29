@@ -119,9 +119,7 @@ Deployment:
 
 ---
 
-## 📄 License
 
-MIT License
 
 ---
 
